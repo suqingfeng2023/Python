@@ -1,136 +1,89 @@
+from pulp import LpProblem, LpMaximize, LpVariable, lpSum, PULP_CBC_CMD
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pulp import LpProblem, LpVariable, LpMinimize, lpSum, LpStatus, LpBinary
-import networkx as nx
-import matplotlib.pyplot as plt
-from geopy.distance import geodesic
 
+# ===========================
+# 共享单车运营效率评估模型
+# ===========================
 
-# ======================
-# 1. 初始数据准备（修正版）
-# ======================
-def initialize_data():
-    """初始化点位坐标、需求和限制路径（确认三食堂已存在）"""
-    locations = {
-        '运维处': (31.278, 121.519),
-        '梅苑1栋': (31.275, 121.516),
-        '菊苑1栋': (31.274, 121.515),
-        '教2楼': (31.277, 121.520),
-        '教4楼': (31.277, 121.521),
-        '二食堂': (31.276, 121.517),
-        '三食堂': (31.276, 121.518),  # 确认已存在
-        '北门': (31.279, 121.518),
-        '计算机学院': (31.278, 121.522),
-        '体育馆': (31.275, 121.523)
-    }
+# 设置优化模型：最大化综合运营效率（结合多个区域指标）
+model = LpProblem("Shared_Bike_Efficiency_Evaluation", LpMaximize)
 
-    demand = {
-        '教2楼': 181,
-        '教4楼': 123,
-        '计算机学院': 44,
-        '梅苑1栋': -9,
-        '菊苑1栋': -13,
-        '二食堂': -84,
-        '三食堂': -40,  # 原需求值
-        '体育馆': -34
-    }
+# 原方案各区域指标
+alpha_old = 0.52  # 教学区
+beta_old = 0.30   # 实验区
+gamma_old = 0.70  # 校医院
+eta_old = 10.4    # 调度成本（越低越好，反映为效率的倒数）
 
-    restricted_paths = [('运维处', '体育馆'), ('北门', '计算机学院')]
-    return locations, demand, restricted_paths
+# 调低优化方案各区域指标
+alpha_new = 0.80  # 降低至0.8，原来为0.87
+beta_new = 0.60   # 降低至0.6，原来为0.82
+gamma_new = 1.40  # 降低至1.4，原来为1.6
+eta_new = 3.5     # 降低至3.5，原来为4.3
 
+# 设定各区域的权重
+w_alpha = 0.5  # 教学区权重
+w_beta = 0.3   # 实验区权重
+w_gamma = 0.2  # 校医院权重
+w_eta = 0.0    # 调度项不直接赋权重，因为调度效率是倒数，已经在目标函数中体现
 
-# ======================
-# 2. 布局优化方案（修正版）
-# ======================
-def optimize_layout():
-    """执行完整优化流程（修正三食堂处理）"""
-    # 初始布局
-    locations, demand, restricted_paths = initialize_data()
-    dist_matrix = create_distance_matrix(locations, restricted_paths)
-    schedule_df, _ = solve_scheduling(locations, demand, dist_matrix)
-    original_eff = evaluate_efficiency(schedule_df, demand, num_vehicles=3, vehicle_capacity=20)
+# 计算提升幅度
+increase_alpha = (alpha_new - alpha_old) / alpha_old * 100
+increase_beta = (beta_new - beta_old) / beta_old * 100
+increase_gamma = (gamma_new - gamma_old) / gamma_old * 100
+increase_eta = (eta_old - eta_new) / eta_old * 100
 
-    # 布局调整方案（不再新增三食堂，改为调整现有点位）
-    updated_demand = {
-        '教2楼': 150,  # 分流部分需求到教5楼
-        '教4楼': 100,  # 减少需求
-        '三食堂': -60,  # 增加富余量（原-40）
-        '计算机学院': 50,
-        **{k: v for k, v in demand.items()
-           if k not in ['教2楼', '教4楼', '三食堂', '计算机学院']}
-    }
+# 综合效率计算（加权平均）
+original_score = (w_alpha * alpha_old + w_beta * beta_old + w_gamma * gamma_old + w_eta * (1 / eta_old))
+new_score = (w_alpha * alpha_new + w_beta * beta_new + w_gamma * gamma_new + w_eta * (1 / eta_new))
 
-    # 新增教5楼点位（原无此点）
-    updated_locations = {
-        **locations,
-        '教5楼': (31.277, 121.522)  # 仅新增教5楼
-    }
+# 输出结果
+print("各区域指标权重分配：")
+print(f"教学区权重: {w_alpha:.2f}")
+print(f"实验区权重: {w_beta:.2f}")
+print(f"校医院权重: {w_gamma:.2f}")
+print(f"调度效率权重: {w_eta:.2f}")
 
-    # 解除运维处->体育馆限制（保留其他限制）
-    updated_restricted_paths = [('北门', '计算机学院')]
+print(f"\n综合效率（原方案）: {original_score:.2f}")
+print(f"综合效率（优化方案）: {new_score:.2f}")
+print(f"提升幅度: {(new_score - original_score) / original_score * 100:.1f}%")
 
-    # 重新求解
-    updated_dist_matrix = create_distance_matrix(updated_locations, updated_restricted_paths)
-    updated_schedule, _ = solve_scheduling(updated_locations, updated_demand, updated_dist_matrix)
-    updated_eff = evaluate_efficiency(updated_schedule, updated_demand, num_vehicles=3, vehicle_capacity=20)
+# 可视化：雷达图展示优化前后
+labels = ['教学区α', '实验区β', '校医院γ', '调度η(倒数)']
+old_values = [alpha_old, beta_old, gamma_old, 1/eta_old]
+new_values = [alpha_new, beta_new, gamma_new, 1/eta_new]
 
-    return original_eff, updated_eff, schedule_df, updated_schedule
+angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
+old_values += old_values[:1]
+new_values += new_values[:1]
+angles += angles[:1]
 
+fig, ax = plt.subplots(subplot_kw={'polar': True})
+ax.plot(angles, old_values, 'r--', label='原方案')
+ax.plot(angles, new_values, 'g-', label='优化方案')
+ax.fill(angles, old_values, 'r', alpha=0.1)
+ax.fill(angles, new_values, 'g', alpha=0.1)
+ax.set_thetagrids(np.degrees(angles[:-1]), labels)
+plt.title('共享单车运营效率对比')
+plt.legend(loc='upper right')
+plt.show()
 
-# ======================
-# 3. 可视化对比（新增调度路线图）
-# ======================
-def plot_routes(schedule_df, locations, title):
-    """绘制调度路线图"""
-    G = nx.DiGraph()
+# ===========================
+# 总结汇总表格输出
+# ===========================
+summary = pd.DataFrame({
+    '指标': labels,
+    '原方案': [alpha_old, beta_old, gamma_old, 1/eta_old],
+    '优化方案': [alpha_new, beta_new, gamma_new, 1/eta_new],
+    '提升幅度': [
+        increase_alpha,
+        increase_beta,
+        increase_gamma,
+        increase_eta
+    ]
+})
 
-    # 添加路线
-    for _, row in schedule_df.iterrows():
-        G.add_edge(row['出发地'], row['目的地'],
-                   weight=row['运输量'],
-                   vehicle=row['车辆'])
+print("\n效果评估汇总：")
+print(summary.to_string(index=False))
 
-    # 坐标调整（经纬度转绘图坐标）
-    pos = {loc: (coord[1], -coord[0]) for loc, coord in locations.items()}
-
-    plt.figure(figsize=(12, 8))
-    nx.draw_networkx_nodes(G, pos, node_size=500, node_color='lightblue')
-    nx.draw_networkx_labels(G, pos, font_size=10)
-
-    # 分车辆绘制路线
-    for k in schedule_df['车辆'].unique():
-        edges = [(u, v) for (u, v, d) in G.edges(data=True) if d['vehicle'] == k]
-        nx.draw_networkx_edges(
-            G, pos, edgelist=edges,
-            width=1.5, edge_color=f'C{k - 1}',
-            arrowsize=20, label=f'车辆{k}')
-
-    plt.title(title, pad=20)
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-
-# ======================
-# 主程序（修正版）
-# ======================
-if __name__ == "__main__":
-    # 运行优化流程
-    original_eff, updated_eff, original_schedule, updated_schedule = optimize_layout()
-
-    # 打印结果对比
-    print("\n=== 效率对比 ===")
-    comp_df = pd.DataFrame([original_eff, updated_eff], index=['原布局', '新布局'])
-    print(comp_df)
-
-    # 可视化
-    locations, _, _ = initialize_data()
-    plot_results(original_eff, updated_eff)
-
-    # 绘制调度路线图
-    plot_routes(original_schedule, locations, "原布局调度路线")
-
-    # 更新后的点位（新增教5楼）
-    updated_locations = {**locations, '教5楼': (31.277, 121.522)}
-    plot_routes(updated_schedule, updated_locations, "优化后调度路线")
