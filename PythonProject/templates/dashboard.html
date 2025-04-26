@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>香港疫情数据可视化大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.1/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts-gl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts-liquidfill.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts-wordcloud.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/geoMap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/MapChart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/WordCloudChart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/china.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/background.js"></script>
+</head>
+
+<body>
+    {{ chart|safe }}
+</body>
+
+</html>
