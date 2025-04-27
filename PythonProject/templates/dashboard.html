@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <title>香港疫情数据可视化大屏</title>
+    <!-- 使用单一版本的ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.1/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts-gl.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts-liquidfill.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/echarts-wordcloud.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/geoMap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/MapChart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/WordCloudChart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/china.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyecharts@1.9.1/assets/js/background.js"></script>
+    <!-- 特别添加香港地图数据 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.1/map/js/hongkong.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .chart-container {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
-
 <body>
-    {{ chart|safe }}
+    <div class="chart-container">
+        {{ chart|safe }}
+    </div>
 </body>
-
 </html>
